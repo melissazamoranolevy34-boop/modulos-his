@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mapa de módulos de un HIS hospitalario</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f8fb;--card:#fff;--tx:#1b2a3a;--mut:#5b6b7c;--bd:#dde4ec;--on:#fff;--c0:#2a7de1;--c1:#8a4fd6;--c2:#e08a1e;--c3:#1f9d8a;--c4:#d6477a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0f1720;--card:#18232f;--tx:#e8eef5;--mut:#9aabbd;--bd:#2a3846;--on:#0f1720;--c0:#5aa2f5;--c1:#b08af0;--c2:#f0aa4a;--c3:#4cc7b3;--c4:#f07aa5}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:20px 16px 4px;max-width:1100px;margin:auto}
+h1{margin:0;font-size:1.5rem}header p{color:var(--mut);margin:6px 0 0}
+.bar{max-width:1100px;margin:auto;padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input{flex:1 1 200px;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--card);color:var(--tx);font-size:1rem}
+.chip{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:7px 12px;border-radius:99px;cursor:pointer;font-size:.85rem}
+.chip.on{background:var(--tx);color:var(--bg)}
+.chip i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.wrap{max-width:1100px;margin:auto;padding:0 8px 30px;overflow-x:auto}
+svg{display:block;width:100%;min-width:880px;height:auto}
+.ln{fill:none;stroke-width:1.6;opacity:.45;transition:opacity .15s}
+.pill rect{fill:var(--card);stroke:var(--a);stroke-width:1.5}
+.pill text{fill:var(--tx);font-size:12px;text-anchor:middle;pointer-events:none}
+.pill,.cat,.hub{cursor:pointer;transition:opacity .15s}
+.pill:hover rect{fill:var(--a)}.pill:hover text{fill:var(--on)}
+.cat rect{fill:var(--a)}.cat text{fill:var(--on);font-size:11px;font-weight:700;text-anchor:middle;pointer-events:none}
+.hub circle{fill:var(--tx)}.hub text{fill:var(--bg);text-anchor:middle;pointer-events:none}
+.off{opacity:.12}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+#ov.show{display:flex}
+.m{background:var(--card);border-radius:16px;max-width:640px;width:100%;max-height:88vh;overflow:auto;padding:22px;border-top:6px solid var(--a)}
+.m h2{margin:0 0 4px}.tag{font-size:.8rem;color:var(--a);font-weight:600}
+.m p{line-height:1.5}.m ul{display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
+.m li{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;font-size:.85rem}
+.inf{margin-top:12px;padding:12px;border:1px dashed var(--a);border-radius:12px;background:var(--bg)}.inf h3{margin:0 0 6px;font-size:.95rem}.inf dt{font-size:.75rem;color:var(--a);font-weight:700;margin-top:8px;text-transform:uppercase}.inf dd{margin:2px 0 0;font-size:.88rem;line-height:1.4}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:14px}
+.nav button{padding:9px 14px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);cursor:pointer;font:inherit}
+</style></head><body>
+<header><h1>Mapa de módulos de un HIS hospitalario</h1><p>Del núcleo hacia afuera: categorías y módulos. Toca un módulo para ver qué hace y su perspectiva informática: estándares, datos, integraciones y qué debes dominar. Toca una categoría para aislarla.</p></header>
+<div class="bar"><input id="q" placeholder="Buscar módulo o función…" aria-label="Buscar"><span id="chips"></span></div>
+<div class="wrap"><svg id="svg" viewBox="0 0 1000 800" role="img" aria-label="Mapa de módulos del HIS"></svg></div>
+<div id="ov"><div class="m" id="m" role="dialog" aria-modal="true"></div></div>
+<script>
+const C=[["Atención clínica","c0"],["Apoyo diagnóstico","c1"],["Gestión y logística","c2"],["Plataforma y datos","c3"],["Pacientes y calidad","c4"]];
+const D=[
+["Paciente",0,"Registro único del paciente: datos demográficos, identificadores y contactos. Es la base sobre la que se cuelga todo el resto.","Registro;Episodios clínicos;Identificación;Documentos;Consentimientos;Preferencias;Familiares"],
+["Admisión / ADT",0,"Controla el flujo del paciente: ingreso, traslados internos y alta (Admission, Discharge, Transfer).","Alta;Ingreso;Egreso;Transferencias internas"],
+["Camas y Hospitalización",0,"Gestiona habitaciones y camas: disponibilidad, limpieza, asignación y movimientos de pacientes.","Habitaciones;Camas;Disponibilidad;Limpieza;Asignación;Movimientos"],
+["Agenda y Citas",0,"Programa horas de consulta, procedimientos y recursos, con listas de espera y recordatorios.","Citas;Disponibilidad;Reprogramaciones;Cancelaciones;Lista de espera;Recordatorios"],
+["Clínico",0,"Corazón de la ficha clínica electrónica: consulta, hospitalización, evolución, indicaciones y diagnósticos.","Consulta externa;Hospitalización;Notas médicas;Antecedentes;Alergias;Signos vitales"],
+["Emergencias",0,"Urgencias: triage, clasificación de riesgo, atención y observación con seguimiento de tiempos.","Triage;Clasificación;Atención;Observación;Procedimientos;Alta/ingreso"],
+["Especialidades",0,"Flujos y plantillas específicas por especialidad médica.","Cardiología;Pediatría;Ginecología;Oncología;Neurología;Dermatología"],
+["Odontología",0,"Odontograma, planes de tratamiento y procedimientos dentales integrados a la ficha.","Odontograma;Plan de tratamiento;Procedimientos;Historial"],
+["Quirófano",0,"Programación de cirugías, uso de pabellón, equipo quirúrgico y checklist de seguridad.","Planificación;Lista de espera quirúrgica;Checklist;Equipo;Recuperación"],
+["Enfermería",0,"Planes de cuidado, administración de medicamentos, balance hídrico y registro de turnos.","Plan de cuidados;Valoración;Medicamentos;Balance hídrico;Entrega de turno"],
+["Órdenes Clínicas",0,"Solicitudes electrónicas de exámenes, procedimientos, medicamentos y dietas.","Laboratorio;Imagen;Procedimientos;Dietas;Prescripciones"],
+["Interconsultas",0,"Solicitud y respuesta entre especialidades o servicios sobre un mismo paciente.","Solicitud;Respuesta;Prioridad;Seguimiento"],
+["Rehabilitación",0,"Terapias kinésicas, ocupacionales y fonoaudiológicas con planes y evolución.","Fisioterapia;Terapia ocupacional;Fonoaudiología;Planes;Evolución"],
+["Telemedicina",0,"Atención remota por videollamada, con receta y registro clínico integrados.","Videoconsulta;Agenda;Historia clínica;Recetas;Documentos"],
+["Salud Pública",0,"Notificación obligatoria, vigilancia epidemiológica y reportes a la autoridad sanitaria.","Notificaciones;Vigilancia;Enfermedades notificables;Estadísticas"],
+["Farmacia",1,"Dispensación y control de medicamentos, interacciones, lotes y vencimientos.","Prescripciones;Dispensación;Conciliación;Inventario;Lotes;Devoluciones"],
+["Laboratorio / LIS",1,"Gestión de muestras, resultados y validación de exámenes, con equipos conectados.","Solicitudes;Muestras;Resultados;Validación;Equipos;Control de calidad"],
+["Imagenología / RIS-PACS",1,"RIS gestiona solicitudes e informes; PACS almacena y muestra las imágenes (DICOM).","Solicitudes;Estudios;Informes;Radiología;PACS;Integración DICOM"],
+["Patología",1,"Biopsias y citologías: registro de muestras, procesamiento e informes anatomopatológicos.","Solicitudes;Muestras;Biopsias;Procesamiento;Informes"],
+["Banco de Sangre",1,"Donantes, hemocomponentes, pruebas cruzadas y trazabilidad transfusional.","Donantes;Componentes;Pruebas;Inventario;Reacciones transfusionales;Trazabilidad"],
+["Nutrición / Dietas",1,"Valoración nutricional, prescripción de dietas y seguimiento por paciente.","Valoración;Órdenes de alimentación;Menús;Restricciones;Seguimiento"],
+["Esterilización / CEyE",1,"Central de esterilización: ciclos, trazabilidad de instrumental y entrega a pabellones.","Recepción;Lavado;Ciclos;Trazabilidad;Distribución;Control"],
+["Facturación",2,"Valorización y cobro de prestaciones a Fonasa, Isapres, convenios y particulares.","Prestaciones;Cuentas;Tarifas;Convenios;Pagos;Estados de cuenta"],
+["Abastecimiento",2,"Planificación y control de requerimientos de bienes e insumos del establecimiento.","Solicitudes;Bodegas;Reposición;Stock mínimo;Proveedores"],
+["Inventario",2,"Stock de medicamentos e insumos con lotes, vencimientos y transferencias.","Medicamentos;Insumos;Lotes;Vencimientos;Transferencias;Ubicaciones"],
+["Compras",2,"Cotizaciones, órdenes de compra y recepción de bienes contra contrato.","Cotizaciones;Órdenes de compra;Proveedores;Recepción;Contratos"],
+["RRHH / Personal",2,"Dotación, turnos, ausentismo, credenciales y competencias del personal.","Profesionales;Turnos;Capacitaciones;Credenciales;Remuneraciones"],
+["Gestión de Recursos",2,"Asignación de salas, equipos y personal para optimizar su uso.","Salas;Equipos;Mantención;Disponibilidad;Recursos"],
+["Administración Hospitalaria",2,"Vista gerencial: indicadores, presupuesto, contratos y control de la operación.","Sedes;Departamentos;Servicios;Catálogos;Recursos"],
+["Gestión Operacional",2,"Ocupación, flujo de pacientes, productividad y capacidad en tiempo real.","Ocupación;Flujo;Productividad;Capacidad;Utilización"],
+["Ambulancias / Transporte",2,"Despacho y seguimiento de traslados de pacientes, con rutas y estados.","Solicitudes;Despacho;Traslados;Rutas;Estado"],
+["Gestión Documental",2,"Archivo de documentos clínicos y administrativos con firma electrónica y versiones.","Documentos;Versiones;Firma electrónica;Plantillas;Archivo"],
+["Reportes / BI",3,"Cuadros de mando e indicadores para decidir: clínicos, financieros y de calidad.","Reportes;Financiero;Operacional;Indicadores;Dashboards;Productividad"],
+["Seguridad / IAM",3,"Identidades y accesos: usuarios, roles, permisos y autenticación.","Usuarios;Roles;Permisos;Autenticación;MFA;Sesiones"],
+["Integraciones",3,"Interoperabilidad con otros sistemas mediante HL7, FHIR y DICOM.","FHIR;HL7;DICOM;PACS/LIS/RIS;APIs;Farmacias;Laboratorios externos"],
+["Motor de Reglas Clínicas",3,"Reglas automáticas que alertan: interacciones, alergias, dosis y protocolos.","Alertas;Recordatorios;Protocolos;Interacciones;Scoring"],
+["IA Clínica",3,"Apoyo con inteligencia artificial: resúmenes, extracción de información y predicción de riesgo.","Resumen clínico;Apoyo diagnóstico;Extracción de información;Análisis"],
+["Auditoría",3,"Registro de accesos y cambios para trazabilidad, cumplimiento y revisión.","Accesos;Cambios;Registros;Reportes;Cumplimiento"],
+["Portal del Paciente",4,"Espacio web/app donde el paciente ve citas, resultados y documentos.","Citas;Resultados;Documentos;Recetas;Mensajes;Telemedicina"],
+["Portal del Profesional",4,"Acceso del equipo de salud a agenda, pacientes, tareas y alertas.","Agenda;Pacientes;Tareas;Alertas;Mensajería;Interconsultas"],
+["Comunicación",4,"Avisos y mensajería a pacientes y equipos por distintos canales.","SMS;Email;Push;Recordatorios"],
+["Consentimientos",4,"Gestión de consentimientos informados con firma y trazabilidad.","Consentimiento informado;Tratamientos;Procedimientos;Cirugía;Firma electrónica;Historial"],
+["Calidad y Seguridad",4,"Gestión de eventos adversos, indicadores y acreditación del establecimiento.","Eventos adversos;Incidentes;Indicadores;Protocolos;Auditorías;Planes de mejora"],
+["Investigación Clínica",4,"Apoyo a estudios clínicos: reclutamiento, protocolos y datos anonimizados.","Estudios;Participantes;Protocolos;Reclutamiento"],
+["Docencia / Formación",4,"Campos clínicos, estudiantes, supervisión y actividades académicas.","Estudiantes;Rotaciones;Supervisores;Evaluaciones"],
+["Control de Infecciones",4,"Vigilancia de IAAS, aislamientos, brotes y microbiología.","Infecciones asociadas;Aislamientos;Vigilancia;Brotes;Microorganismos"]];
+const E=["FHIR Patient; HL7 ADT A28/A31; MPI|Identificadores (RUN, ID local), demografía, contactos, previsión|Todos los módulos; Registro Civil, Fonasa|Duplicados y fusión de pacientes (A40): la calidad del MPI es crítica. Validar el RUN (módulo 11).","HL7 v2 ADT (A01, A02, A03, A08); FHIR Encounter|Episodio, tipo de ingreso, servicio, fecha y hora, motivo|Camas, Facturación, Laboratorio, Farmacia, Agenda|ADT es el bus de eventos hacia el resto: un A08 mal enviado deja desactualizados a otros sistemas.","HL7 ADT A02/A03; FHIR Location|Unidad, sala, cama, estado (libre, ocupada, limpieza, bloqueada)|ADT, Enfermería, Aseo, Gestión operacional|Jerarquía de ubicaciones bien parametrizada; el estado de la cama debe sincronizarse con el alta.","FHIR Appointment/Schedule/Slot; HL7 SIU|Agendas, bloques, recursos, tipo de cita, estado|Paciente, Portal, Comunicación, Facturación, listas de espera (SIGTE)|Reglas de sobrecupo y bloqueos; trazabilidad de inasistencias; integración con listas de espera ministeriales.","FHIR Condition/Observation/Encounter; CIE-10/CIE-11; SNOMED CT|Diagnósticos, anamnesis, evolución, signos vitales, alergias|Órdenes, Enfermería, Farmacia, Reportes|Dato codificado vs texto libre: define qué se puede explotar, reportar y usar en reglas.","Triage ESI (C1 a C5); HL7 ADT; FHIR Encounter|Categoría de triage, tiempos puerta-médico, destino|ADT, Laboratorio, Imagen, SAMU/Ambulancias, REM|Marcas de tiempo exactas (de ahí salen los indicadores) y plan de contingencia (downtime).","Plantillas estructuradas; SNOMED CT; CIE-10|Formularios por especialidad, escalas y scores|Clínico, Órdenes, Reportes|Diseño de plantillas: campos estructurados evitan texto libre inexplotable; versionar los formularios.","CIE-10 (K); FHIR Procedure|Odontograma por pieza (FDI) y superficie, procedimientos, planes|Agenda, Facturación, Imagen|Modelar bien pieza y superficie dental; registrar procedimientos para facturación.","FHIR Procedure; checklist OMS|Programación, equipo, tiempos quirúrgicos, insumos|Agenda, Esterilización, Inventario, Patología|Tiempos (incisión, cierre) para indicadores; consumo de insumos asociado al paciente.","SNOMED CT; NANDA/NIC/NOC; FHIR MedicationAdministration|Plan de cuidados, signos vitales, balance, administración|Farmacia, Órdenes, Clínico, monitores|Administración segura (pulsera y código de barras); integrar monitores y bombas exige HL7 o IEEE 11073.","CPOE; HL7 ORM/OML; FHIR ServiceRequest; LOINC|Orden, prioridad, estado, indicación clínica|Laboratorio, Imagen, Farmacia, Nutrición|Catálogo de prestaciones codificado y mapeado (LOINC o código local); un mapeo errado rompe los resultados.","FHIR ServiceRequest/Task; HL7 REF|Especialidad destino, motivo, prioridad, respuesta|Clínico, Agenda, SIGTE|Flujo de estados y plazos; notificar al solicitante cuando hay respuesta.","CIF (OMS); FHIR CarePlan|Plan, sesiones, evaluación funcional|Agenda, Clínico|Escalas funcionales estructuradas permiten medir la evolución.","FHIR; HL7; WebRTC; Ley 19.628 y 20.584|Sesión, consentimiento, registro clínico, receta electrónica|Agenda, Portal, Clínico, Receta|Seguridad de la transmisión, identidad del paciente, consentimiento y disponibilidad de la plataforma.","REM; enfermedades de notificación obligatoria; CIE-10|Casos notificables, datos agregados REM|Clínico, Laboratorio, MINSAL/DEIS|Reglas que detecten casos de notificación obligatoria; consistencia de los REM.","ATC; HL7 RDE/RDS; FHIR MedicationRequest|Producto, lote, vencimiento, dosis, vía, stock|Órdenes, Enfermería, Inventario|Catálogo de fármacos único y mapeado a ATC; alertas de interacción y alergia.","LOINC; HL7 ORU/OML; interfaz con analizadores; FHIR DiagnosticReport/Observation|Orden, muestra, analito, resultado, unidad, rango, estado|Órdenes, Clínico, analizadores, middleware|Mapeo de analitos a LOINC, unidades y valores críticos; interfaces bidireccionales con equipos.","DICOM; DICOMweb; HL7 ORM/ORU; FHIR ImagingStudy; IHE SWF|Estudio, serie, imagen, informe, accession number|Órdenes, PACS, modalidades, Clínico|DICOM Modality Worklist y accession number enlazan orden, imagen e informe; almacenamiento y respaldo.","SNOMED CT (morfología y topografía); CIE-O; FHIR DiagnosticReport|Muestra, bloque, lámina, diagnóstico morfológico|Órdenes, Clínico, Oncología|Trazabilidad de muestra y bloque; codificación CIE-O para registros de cáncer.","ISBT 128; HL7; FHIR BiologicallyDerivedProduct|Unidad, grupo ABO/Rh, pruebas cruzadas, reacción transfusional|Laboratorio, Clínico, Enfermería|Trazabilidad donante a receptor y verificación en cabecera; alto riesgo, validar a fondo.","SNOMED CT; FHIR NutritionOrder|Dieta, restricciones, alergias, estado nutricional|Órdenes, alimentación, Clínico|Restricciones y alergias deben cruzarse con la orden de dieta.","GS1/UDI; trazabilidad por lote|Instrumental, set, ciclo, indicadores biológicos|Quirófano, Inventario|Trazabilidad set a paciente (lote de esterilización) ante cualquier evento.","Prestaciones codificadas; Fonasa/Isapres; GRD; GES|Prestación, tarifa, previsión, cuenta, GRD|ADT, Clínico, Farmacia, Inventario|Codificación completa y oportuna; el GRD depende de CIE-10 y procedimientos bien registrados.","Catálogos de bienes; ERP|Requerimiento, bodega, punto de reposición|Compras, Inventario, ERP|Maestro de artículos único; evitar códigos duplicados entre clínico y logístico.","GS1 (GTIN/UDI); ERP|Artículo, lote, vencimiento, ubicación, movimiento|Farmacia, Compras, Quirófano|El consumo por paciente alimenta los costos; sincronizar con ERP y conteos.","Mercado Público; ERP|Cotización, orden de compra, proveedor, recepción|Abastecimiento, Contabilidad|Interfaz con ERP y flujos de aprobación controlados.","FHIR Practitioner; RNPI (Superintendencia de Salud)|Profesional, cargo, turno, credenciales|IAM, Agenda, Remuneraciones|Alta y baja de personal deben crear o bloquear usuarios y roles.","FHIR Location/Device/HealthcareService|Salas, equipos, mantención, disponibilidad|Agenda, Quirófano, Inventario|Un recurso mal modelado genera conflictos de agenda y doble reserva.","Estructura organizacional; centros de costo|Establecimiento, servicio, centro de costo, catálogos|Todos los módulos; ERP|Es la parametrización base: un error aquí se propaga a todo el sistema.","Indicadores; ADT como fuente|Ocupación, estada, rotación, tiempos de espera|ADT, Camas, Reportes|Definir cada indicador (numerador, denominador, fuente) para que sea reproducible.","SAMU; GPS; FHIR Task/Location|Solicitud, móvil, ruta, tiempos|Emergencias, ADT|Integración con telemetría y registro de tiempos para indicadores prehospitalarios.","HL7 CDA; FHIR DocumentReference; PDF/A; Ley 19.799|Documento, versión, firmante, sello de tiempo|Clínico, Consentimientos, Auditoría|Firma electrónica avanzada y retención legal de la ficha; versionado inmutable.","SQL; modelo dimensional; ETL; REM/DEIS|Hechos, dimensiones, indicadores, vistas|Todos los módulos; data warehouse|La calidad del dato (completitud, consistencia) manda sobre el dashboard; mantener un diccionario de datos.","RBAC; LDAP/AD; SSO (OAuth2, OIDC, SAML); Ley 19.628 y 20.584|Usuario, rol, permiso, sesión|RRHH, todos los módulos|Mínimo privilegio; el acceso de emergencia (break-the-glass) debe quedar siempre auditado.","HL7 v2, FHIR R4, DICOM, IHE; motor de integración|Mensajes, mapeos, colas, errores|LIS, RIS/PACS, Farmacia, MINSAL, equipos|Monitoreo de colas y reproceso; mapeo de códigos entre sistemas; pruebas end to end en QA.","Clinical Decision Support; CDS Hooks; CQL|Regla, disparador, condición, acción|Clínico, Farmacia, Órdenes|Fatiga de alertas: reglas demasiado sensibles se ignoran; validar con clínicos y versionar.","NLP; modelos predictivos; FHIR|Datos de entrenamiento, scores, trazabilidad del modelo|Clínico, Reportes|Calidad y sesgo de los datos, privacidad y validación clínica antes de usarlo en la práctica.","IHE ATNA; FHIR AuditEvent; logs|Quién, qué, cuándo, desde dónde|IAM, todos los módulos|Registros inmutables; revisar accesos a fichas sensibles.","FHIR API; SMART on FHIR; OAuth2; Ley 20.584|Citas, resultados liberados, documentos|Agenda, Laboratorio, Clínico|Definir qué resultados se liberan y cuándo; autenticación fuerte (ClaveÚnica).","SSO; SMART on FHIR|Panel de tareas, alertas, pacientes asignados|Clínico, Agenda, IAM|Rendimiento y usabilidad: es la puerta de entrada diaria del clínico.","Pasarelas SMTP/SMS; push|Plantilla, canal, estado de envío|Agenda, Portal|Gestionar autorización de contacto y no enviar datos clínicos por canales inseguros.","FHIR Consent; firma electrónica; Ley 20.584|Tipo, versión, firma, vigencia, revocación|Clínico, Quirófano, Gestión Documental|Vincular al episodio o procedimiento; versionar los textos legales.","Acreditación de prestadores; indicadores; OMS|Evento adverso, severidad, análisis causa raíz|Clínico, Reportes, Auditoría|Flujos de notificación y seguimiento; el dato debe poder explotarse para análisis.","Seudonimización; CDISC; REDCap|Participante, protocolo, consentimiento, datos del estudio|Clínico, Reportes|Datos desidentificados y aprobación de comité de ética.","Roles y permisos acotados|Rotación, estudiante, supervisor|IAM, RRHH|Accesos temporales con supervisión y trazabilidad.","IAAS (MINSAL); CIE-10; microbiología (antibiograma, CLSI/EUCAST)|Aislamiento, germen, resistencia, caso IAAS|Laboratorio, Clínico, Camas|Reglas que generen alertas epidemiológicas a partir de resultados de laboratorio."];
+let cat=-1,cur=0;
+const $=id=>document.getElementById(id);
+const sides=[[0,3],[1,2,4]],P=26,H=800,hy=H/2,pos={},cpos={};
+sides.forEach((gs,s)=>{const n=gs.reduce((a,c)=>a+D.filter(d=>d[1]===c).length,0);let y=(H-(n*P+(gs.length-1)*30))/2;
+gs.forEach(c=>{let k=0;D.forEach((d,i)=>{if(d[1]===c)pos[i]={x:s?790:20,y:y+(k++)*P}});cpos[c]={y:y+k*P/2-2,s};y+=k*P+30})});
+function map(){let s="";
+C.forEach((c,ci)=>{const p=cpos[ci],L=!p.s,ex=L?410:590,sx=L?290:710,mx=(500+ex)/2;
+s+=`<path class="ln" data-c="${ci}" d="M500,${hy}C${mx},${hy} ${mx},${p.y} ${ex},${p.y}" stroke="var(--${c[1]})"/>`;
+D.forEach((d,i)=>{if(d[1]!==ci)return;const q=pos[i],px=L?210:790,py=q.y+11,m=(sx+px)/2;
+s+=`<path class="ln" data-i="${i}" d="M${sx},${p.y}C${m},${p.y} ${m},${py} ${px},${py}" stroke="var(--${c[1]})"/>`})});
+C.forEach((c,ci)=>{const p=cpos[ci];s+=`<g class="cat" data-c="${ci}" style="--a:var(--${c[1]})" transform="translate(${p.s?590:290},${p.y-17})"><rect width="120" height="34" rx="10"/><text x="60" y="21">${c[0]}</text></g>`});
+D.forEach((d,i)=>{const q=pos[i];s+=`<g class="pill" data-i="${i}" style="--a:var(--${C[d[1]][1]})" transform="translate(${q.x},${q.y})"><rect width="190" height="22" rx="11"/><text x="95" y="15">${d[0]}</text></g>`});
+s+=`<g class="hub"><circle cx="500" cy="${hy}" r="48"/><text x="500" y="${hy+4}" font-size="26" font-weight="800">HIS</text><text x="500" y="${hy+24}" font-size="10">módulos</text></g>`;
+$("svg").innerHTML=s;dim()}
+function dim(){const t=$("q").value.toLowerCase();
+document.querySelectorAll("[data-i]").forEach(e=>{const d=D[+e.dataset.i];e.classList.toggle("off",!((cat<0||d[1]===cat)&&(d[0]+d[2]+d[3]).toLowerCase().includes(t)))});
+document.querySelectorAll("[data-c]").forEach(e=>e.classList.toggle("off",cat>=0&&+e.dataset.c!==cat))}
+function chips(){$("chips").innerHTML=[["Todos",-1,"var(--tx)"],...C.map((c,i)=>[c[0],i,`var(--${c[1]})`])].map(([n,i,col])=>`<button class="chip ${cat===i?"on":""}" data-i="${i}"><i style="background:${col}"></i>${n}</button>`).join("")}
+function inf(i){const e=(E[i]||"").split("|"),L=["Estándares y terminologías","Datos clave","Se integra con","Qué debes dominar"];return `<div class="inf"><h3>🖥️ Perspectiva informática</h3><dl>${L.map((l,k)=>`<dt>${l}</dt><dd>${e[k]||""}</dd>`).join("")}</dl></div>`}
+function show(i){cur=i;const d=D[i];
+$("m").style.setProperty("--a",`var(--${C[d[1]][1]})`);
+$("m").innerHTML=`<div class="tag">${C[d[1]][0]}</div><h2>${d[0]}</h2><p>${d[2]}</p><b>Funciones principales</b><ul>${d[3].split(";").map(f=>`<li>${f}</li>`).join("")}</ul>${inf(i)}<div class="nav"><button data-n="-1">← Anterior</button><button data-n="0">Cerrar</button><button data-n="1">Siguiente →</button></div>`;
+$("ov").classList.add("show")}
+function step(n){const ms=D.map((d,i)=>i).filter(i=>D[i][1]===D[cur][1]);show(ms[(ms.indexOf(cur)+n+ms.length)%ms.length])}
+function setCat(c){cat=c;chips();dim()}
+$("chips").onclick=e=>{const b=e.target.closest(".chip");if(b)setCat(+b.dataset.i)};
+$("svg").onclick=e=>{const p=e.target.closest(".pill"),c=e.target.closest(".cat"),h=e.target.closest(".hub");
+if(p)show(+p.dataset.i);else if(c)setCat(cat===+c.dataset.c?-1:+c.dataset.c);else if(h)setCat(-1)};
+$("q").oninput=dim;
+$("m").onclick=e=>{const b=e.target.closest("[data-n]");if(!b)return;const n=+b.dataset.n;n?step(n):$("ov").classList.remove("show")};
+$("ov").onclick=e=>{if(e.target.id==="ov")$("ov").classList.remove("show")};
+document.onkeydown=e=>{if(!$("ov").classList.contains("show"))return;if(e.key==="Escape")$("ov").classList.remove("show");if(e.key==="ArrowRight")step(1);if(e.key==="ArrowLeft")step(-1)};
+chips();map();
+</script></body></html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Recorrido del paciente por el HIS</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;--bg:#04060f;--pan:rgba(10,16,34,.85);--tx:#e6f1ff;--mut:#8ea3c4;--bd:rgba(120,170,255,.25);--c0:#00e5ff;--c1:#b26bff;--c2:#ffb020;--c3:#2cffb0;--c4:#ff4d97;--f:Orbitron,"Segoe UI",system-ui,sans-serif}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(ellipse at 50% 15%,#0e1d44 0%,var(--bg) 65%) fixed;min-height:100vh}
+header,.stage,.ctl{max-width:1100px;margin:auto;padding-left:16px;padding-right:16px}
+header{padding-top:20px}
+h1{margin:0;font:800 clamp(1.15rem,3vw,1.8rem) var(--f);letter-spacing:.06em;background:linear-gradient(90deg,var(--c0),var(--c1),var(--c4));-webkit-background-clip:text;background-clip:text;color:transparent}
+header p{color:var(--mut);margin:6px 0 0;font-size:.9rem}
+.track{display:flex;gap:6px;overflow-x:auto;padding:14px 16px;max-width:1100px;margin:auto}
+.dot{flex:0 0 auto;width:108px;background:var(--pan);border:1px solid var(--bd);border-radius:12px;color:var(--mut);padding:8px;cursor:pointer;text-align:left;font:inherit;transition:.2s}
+.dot b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;border:2px solid var(--a);color:var(--a);font:700 .72rem var(--f)}
+.dot span{display:block;font-size:.72rem;margin-top:6px;line-height:1.2}
+.dot.done b{background:var(--a);color:var(--bg)}
+.dot.on{border-color:var(--a);box-shadow:0 0 16px var(--a);color:var(--tx)}
+.stage{padding-bottom:12px}
+.card{background:var(--pan);border:1px solid var(--bd);border-top:3px solid var(--a);border-radius:16px;padding:20px;box-shadow:0 0 30px rgba(0,150,255,.1)}
+.tag{font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--a)}
+h2{margin:4px 0 12px;font:800 clamp(1.1rem,2.6vw,1.5rem) var(--f)}
+.mods{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.mods i{font-style:normal;border:1px solid var(--a);color:var(--a);border-radius:99px;padding:4px 11px;font-size:.8rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.blk{background:rgba(0,0,0,.28);border:1px dashed var(--bd);border-radius:12px;padding:12px}
+.blk h3{margin:0 0 6px;font:700 .72rem var(--f);letter-spacing:.06em;color:var(--a);text-transform:uppercase}
+.blk p{margin:0;font-size:.9rem;line-height:1.5}
+.ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:30px}
+.ctl button{padding:9px 16px;border-radius:99px;border:1px solid var(--a);background:transparent;color:var(--a);cursor:pointer;font:inherit}
+.ctl button:hover{background:var(--a);color:var(--bg)}
+.meter{flex:1 1 200px;font-size:.8rem;color:var(--mut)}
+.bar{height:6px;border-radius:9px;background:var(--bd);margin-top:5px;overflow:hidden}
+.bar div{height:100%;background:linear-gradient(90deg,var(--c0),var(--c4));transition:width .3s}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<header><h1>RECORRIDO DEL PACIENTE POR EL HIS</h1><p>Sigue a un paciente con dolor torácico desde que llega a Urgencia hasta el alta y la gestión posterior. En cada paso verás qué módulos participan, qué evento o estándar se dispara y qué debe validar un informático.</p></header>
+<nav class="track" id="track" aria-label="Pasos del recorrido"></nav>
+<section class="stage"><div class="card" id="card" aria-live="polite"></div></section>
+<div class="ctl" id="ctl"><button data-a="prev">← Anterior</button><button data-a="play" id="play">▶ Recorrido automático</button><button data-a="next">Siguiente →</button><div class="meter" id="meter"></div></div>
+<script>
+const PH=[["Ingreso","c0"],["Diagnóstico","c1"],["Tratamiento","c2"],["Alta y cierre","c3"],["Gestión y datos","c4"]];
+const S=[
+["Identificación del paciente",0,["Paciente","Seguridad / IAM","Integraciones"],"Un paciente con dolor torácico llega a Urgencia. El administrativo inicia sesión (usuario y rol), busca por RUN en el índice maestro de pacientes y, si no existe, lo crea. Si llega inconsciente, se abre un registro NN para fusionarlo después.","HL7 ADT^A28 (alta de persona) o A31 (actualización); FHIR Patient. El MPI replica la identidad a los demás sistemas.","Duplicados y fusión (A40), validación del RUN (módulo 11), paciente NN y que el inicio de sesión quede auditado."],
+["Admisión y triage",0,["Admisión / ADT","Emergencias","Camas y Hospitalización"],"Se abre el episodio de urgencia y la enfermera de triage asigna la categoría de riesgo (C1 a C5), que ordena la cola de atención.","HL7 ADT^A04 (registro en urgencia); FHIR Encounter. ADT notifica a todos los sistemas suscritos.","Marcas de tiempo (llegada, triage, atención), categoría obligatoria y qué ocurre si ADT se cae (downtime)."],
+["Atención médica",1,["Clínico","Motor de Reglas Clínicas","Especialidades","Odontología"],"El médico registra anamnesis, signos vitales y sospecha diagnóstica. El motor de reglas avisa si hay alergias o criterios de riesgo.","FHIR Condition, Observation y AllergyIntolerance; diagnóstico con CIE-10 y SNOMED CT; reglas de apoyo a la decisión.","Dato codificado en vez de texto libre, plantillas por especialidad y alertas que no saturen al clínico."],
+["Órdenes clínicas",1,["Órdenes Clínicas","Laboratorio / LIS","Imagenología / RIS-PACS"],"Se indican electrocardiograma, exámenes de sangre y una radiografía. Cada orden viaja al servicio que la ejecuta.","HL7 ORM^O01 y OML^O21; FHIR ServiceRequest; catálogo mapeado a LOINC.","Mapeo del catálogo de prestaciones, prioridad urgente y que la orden llegue al LIS y al RIS sin perderse."],
+["Diagnóstico de apoyo",1,["Laboratorio / LIS","Imagenología / RIS-PACS","Patología"],"El laboratorio procesa las muestras en sus analizadores y valida resultados. Radiología adquiere la imagen y el radiólogo la informa.","HL7 ORU^R01 (resultados); DICOM y DICOMweb para imágenes; FHIR DiagnosticReport; accession number.","Valores críticos con aviso inmediato, unidades y rangos, e informe enlazado a su imagen."],
+["Interconsulta",1,["Interconsultas","Telemedicina"],"El resultado sugiere un problema cardíaco: se solicita interconsulta a cardiología, presencial o por teleconsulta.","FHIR ServiceRequest y Task; HL7 REF; derivación a lista de espera (SIGTE) si es ambulatoria.","Estados y plazos de respuesta, y que el solicitante sea notificado cuando se responde."],
+["Hospitalización y cama",2,["Camas y Hospitalización","Admisión / ADT","Gestión de Recursos"],"Se decide hospitalizar. El sistema muestra las camas disponibles en la unidad adecuada y se asigna una; el paciente sube con su pulsera.","HL7 ADT^A01 (ingreso) y A02 (traslado); FHIR Location y Encounter.","Estado de cama sincronizado (libre, ocupada, limpieza) y pulsera con identificadores correctos."],
+["Tratamiento y cuidados",2,["Farmacia","Enfermería","Nutrición / Dietas","Inventario"],"El médico prescribe, farmacia valida y dispensa, y enfermería administra con verificación y registra signos vitales y balance. Nutrición ajusta la dieta.","HL7 RDE^O11 (prescripción) y RAS^O17 (administración); FHIR MedicationRequest y MedicationAdministration; ATC.","Interacciones y alergias, administración con código de barras, y stock y lotes descontados por paciente."],
+["Procedimiento",2,["Quirófano","Esterilización / CEyE","Banco de Sangre","Consentimientos"],"Si requiere un procedimiento: consentimiento firmado, pabellón programado, set esterilizado y, si hace falta, sangre compatible.","FHIR Procedure y Consent; checklist de seguridad; trazabilidad por lote (GS1/UDI) e ISBT 128.","Consentimiento vinculado al procedimiento, trazabilidad set a paciente y tiempos quirúrgicos registrados."],
+["Vigilancia y seguridad",2,["Control de Infecciones","Calidad y Seguridad","Rehabilitación"],"Durante la estadía se vigilan infecciones y eventos adversos, y kinesiología inicia la rehabilitación temprana.","Reglas sobre resultados de microbiología (antibiograma); notificación IAAS; CIF para evolución funcional.","Alertas de aislamiento, flujo de notificación de eventos y datos explotables para indicadores."],
+["Alta clínica",3,["Admisión / ADT","Gestión Documental"],"El médico indica el alta y redacta la epicrisis, que se firma electrónicamente. La cama pasa a limpieza.","HL7 ADT^A03 (alta); HL7 CDA o FHIR DocumentReference para la epicrisis; firma electrónica avanzada.","Que el alta cierre el episodio y libere la cama, epicrisis firmada y diagnósticos de egreso codificados."],
+["Facturación y seguimiento",3,["Facturación","Agenda y Citas","Portal del Paciente","Comunicación"],"Se valoriza la cuenta (GRD, Fonasa o Isapre), se agenda el control y el paciente ve su epicrisis y citas en el portal. Recibe recordatorios.","HL7 DFT^P03 (cargos); SIU^S12 (cita); FHIR API con SMART on FHIR para el portal.","Prestaciones completas y codificadas, cuenta cerrada tras el alta y consentimiento de contacto."],
+["Datos y vigilancia",4,["Reportes / BI","Salud Pública","Auditoría"],"Con lo registrado se construyen indicadores y REM, se notifican enfermedades de notificación obligatoria y se auditan los accesos a la ficha.","ETL a un modelo dimensional; REM/DEIS; FHIR AuditEvent e IHE ATNA.","Calidad del dato (completitud y consistencia), diccionario de indicadores y revisión de accesos."],
+["Detrás de escena",4,["Abastecimiento","Compras","RRHH / Personal","Administración Hospitalaria","Gestión Operacional","Ambulancias / Transporte"],"Mientras tanto, la logística repone insumos, RRHH gestiona turnos y credenciales, y la gestión operacional mira ocupación y flujo. Ambulancias coordina los traslados.","Maestro de artículos (GS1), integración con ERP y Mercado Público; usuarios creados desde RRHH.","Códigos únicos entre clínico y logístico, altas y bajas de personal ligadas a usuarios y roles, y parametrización base sin errores."],
+["Mejora continua",4,["IA Clínica","Investigación Clínica","Docencia / Formación","Portal del Profesional"],"Los datos alimentan modelos de apoyo, estudios y docencia, y el equipo clínico ve sus tareas y alertas en su portal.","Seudonimización, CDISC, NLP y modelos predictivos; SMART on FHIR.","Sesgo y calidad de datos, aprobación de ética y acceso temporal supervisado para estudiantes."]];
+const $=id=>document.getElementById(id);let cur=0,timer=null;
+$("track").innerHTML=S.map((s,i)=>`<button class="dot" data-i="${i}" style="--a:var(--${PH[s[1]][1]})"><b>${i+1}</b><span>${s[0]}</span></button>`).join("");
+function go(i){cur=(i+S.length)%S.length;const s=S[cur],a=`var(--${PH[s[1]][1]})`,seen=new Set();
+S.slice(0,cur+1).forEach(x=>x[2].forEach(m=>seen.add(m)));const tot=new Set(S.flatMap(x=>x[2])).size;
+document.querySelectorAll(".dot").forEach((e,k)=>{e.classList.toggle("on",k===cur);e.classList.toggle("done",k<cur)});
+document.querySelector(".dot.on").scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
+$("card").style.setProperty("--a",a);$("ctl").style.setProperty("--a",a);
+$("card").innerHTML=`<div class="tag">Paso ${cur+1} de ${S.length} · ${PH[s[1]][0]}</div><h2>${s[0]}</h2><div class="mods">${s[2].map(m=>`<i>${m}</i>`).join("")}</div><div class="grid"><div class="blk"><h3>Qué ocurre</h3><p>${s[3]}</p></div><div class="blk"><h3>Evento y estándares</h3><p>${s[4]}</p></div><div class="blk"><h3>Qué validar como informático</h3><p>${s[5]}</p></div></div>`;
+$("meter").innerHTML=`Módulos recorridos: <b>${seen.size}</b> de ${tot}<div class="bar"><div style="width:${seen.size/tot*100}%"></div></div>`}
+function stop(){clearInterval(timer);timer=null;$("play").textContent="▶ Recorrido automático"}
+$("track").onclick=e=>{const b=e.target.closest(".dot");if(b){stop();go(+b.dataset.i)}};
+$("ctl").onclick=e=>{const a=e.target.dataset.a;if(!a)return;
+if(a==="play"){if(timer)return stop();$("play").textContent="⏸ Pausar";timer=setInterval(()=>go(cur+1),6500)}else{stop();go(cur+(a==="next"?1:-1))}};
+document.onkeydown=e=>{if(e.key==="ArrowRight"){stop();go(cur+1)}if(e.key==="ArrowLeft"){stop();go(cur-1)}};
+go(0);
+</script></body></html>
